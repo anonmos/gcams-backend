@@ -1,0 +1,33 @@
+Arguments: 
+  /Users/tim/.nvm/versions/node/v6.10.2/bin/node /Users/tim/.nvm/versions/node/v6.10.2/bin/yarn add aws-sdk
+
+PATH: 
+  /usr/local/opt/sqlite/bin:/Users/tim/.nvm/versions/node/v6.10.2/bin:/Users/tim/google-cloud-sdk/bin:/Users/tim/IDEs/android-sdk-macosx/platform-tools:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/go/bin:/opt/X11/bin:/usr/local/go_appengine/:/usr/local/eclipse/:/Users/tim/SDK/appengine/gsutil:/Users/tim/Applications/blender.app/Contents/MacOS
+
+Yarn version: 
+  1.0.2
+
+Node version: 
+  6.10.2
+
+Platform: 
+  darwin x64
+
+npm manifest: 
+  {
+    "name": "growneycams",
+    "version": "1.0.0",
+    "main": "index.js",
+    "license": "MIT"
+  }
+
+yarn manifest: 
+  No manifest
+
+Lockfile: 
+  No lockfile
+
+Trace: 
+  Error: read ECONNRESET
+      at exports._errnoException (util.js:1018:11)
+      at TLSWrap.onread (net.js:572:26)
