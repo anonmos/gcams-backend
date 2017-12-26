@@ -97,6 +97,29 @@ class S3Connector {
             });
         });
     }
+    getBucketIndex(bucket) {
+        let params = {
+            Bucket: bucket,
+            Key: 'index.json'
+        };
+        return new Promise((resolve, reject) => {
+            this.instance.getObject(params, (err, data) => {
+                if (err) {
+                    reject(err);
+                }
+                else {
+                    resolve(this.parseIndex(data));
+                }
+            });
+        });
+    }
+    parseIndex(data) {
+        let rval = [];
+        if (data && data.Body) {
+            rval = JSON.parse(data.Body);
+        }
+        return rval;
+    }
     parseBucketContents(data) {
         let rval = [];
         if (data && data.Contents) {

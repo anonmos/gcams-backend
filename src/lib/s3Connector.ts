@@ -103,6 +103,33 @@ export default class S3Connector {
         });
     }
 
+    public getBucketIndex(bucket: string): Promise<AWSError | Array<string>> {
+        let params: S3.GetObjectRequest = {
+            Bucket: bucket,
+            Key: 'index.json'
+        };
+
+        return new Promise((resolve, reject) => {
+            this.instance.getObject(params, (err: AWSError, data: S3.GetObjectOutput) => {
+                if (err) {
+                    reject(err)
+                } else {
+                    resolve(this.parseIndex(data))
+                }
+            })
+        })
+    }
+
+    private parseIndex(data: S3.GetObjectOutput): Array<string> {
+        let rval: Array<string> = [];
+
+        if (data && data.Body) {
+            rval = JSON.parse(<string> data.Body)
+        }
+
+        return rval;
+    }
+
     private parseBucketContents(data: ListObjectsV2Output): Array<string> {
         let rval: Array<string> = [];
 

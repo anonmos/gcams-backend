@@ -7,6 +7,11 @@ interface BucketSNSMessage {
     bucket: string
 }
 
+interface AllIndices {
+    bucket: string,
+    path: string
+}
+
 export async function generateIndividualBucketIndex(event: SNSEvent, context: Context, callback: ProxyCallback) {
     let message = parseEventMessage(event);
     context.callbackWaitsForEmptyEventLoop = false;
@@ -61,6 +66,48 @@ export async function refreshBucketIndices(event: SNSEvent, context: Context, ca
                     callback(new Error(`Error: Problem posting to SNS topic ${process.env.SNS_ARN}`))
                 })
         });
+    }
+}
+
+export async function updateRpiFullIndexFile(event: SNSEvent, context: Context, callback: ProxyCallback) {
+    context.callbackWaitsForEmptyEventLoop = false;
+
+    if (!process.env.KEY || !process.env.SECRET) {
+        callback(new Error("Error: Key and secret environment variables have not been set."))
+    }
+
+    let s3Connector = new Connector(process.env.KEY, process.env.SECRET);
+
+    let buckets: Array<string> | void | AWSError = await s3Connector.getBuckets().catch((err: AWSError) => {
+        console.log(`Error: Failed to retrieve buckets with message: ${err.message}`);
+        callback(new Error(`Error: Failed to retrieve buckets with message: ${err.message}`));
+    });
+
+    //@ts-ignore: We have a catch statement, should never be an AWS error
+    if (buckets && buckets.length > 0) {
+        let indices: Array<AllIndices> = [];
+
+        for (let i = 0; i < (<Array<string>> buckets).length; ++i) {
+            let bucket = (<Array<string>> buckets)[i];
+
+            let paths = await s3Connector.getBucketIndex(bucket).catch((err: AWSError) => {
+                console.log(`Error: Failed to retrieve index.json from ${bucket} with error ${err.message}`);
+                callback(new Error(`Error: Failed to retrieve index.json from ${bucket} with error ${err.message}`));
+            });
+
+
+            if (paths) {
+                for (let j = 0; j < (<Array<string>> paths).length; ++j) {
+                    let path = (<Array<string>> paths)[j];
+                    indices.push({bucket: bucket, path: path});
+                }
+            }
+        }
+
+        await s3Connector.writeFile("rpi-gc-bucket", "allpaths.json", JSON.stringify(indices)).catch((err: AWSError) => {
+            console.log(`Error: Failed to write allpaths.json to rpi-gc-bucket: ${err.message}`);
+            callback(new Error(`Error: Failed to write allpaths.json to rpi-gc-bucket: ${err.message}`));
+        })
     }
 }
 

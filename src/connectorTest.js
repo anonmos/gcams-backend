@@ -51,6 +51,15 @@ function triggerPostToMarkBucket() {
         console.log(`Submit response was: ${JSON.stringify(submitResponse)}`);
     });
 }
-reportBuckets();
+function getIndexFileContents() {
+    return __awaiter(this, void 0, void 0, function* () {
+        let indexFileContents = yield connectorInstance.getBucketIndex("gcams-test").catch((err) => {
+            console.log(`AWS Error: ${err.message}`);
+        });
+        console.log(`Index file contents: ${JSON.stringify(indexFileContents)}`);
+    });
+}
+//reportBuckets();
 //getBucketContents();
 //triggerPostToMarkBucket();
+//getIndexFileContents();

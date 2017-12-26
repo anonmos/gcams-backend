@@ -61,6 +61,41 @@ function refreshBucketIndices(event, context, callback) {
     });
 }
 exports.refreshBucketIndices = refreshBucketIndices;
+function updateRpiFullIndexFile(event, context, callback) {
+    return __awaiter(this, void 0, void 0, function* () {
+        context.callbackWaitsForEmptyEventLoop = false;
+        if (!process.env.KEY || !process.env.SECRET) {
+            callback(new Error("Error: Key and secret environment variables have not been set."));
+        }
+        let s3Connector = new s3Connector_1.default(process.env.KEY, process.env.SECRET);
+        let buckets = yield s3Connector.getBuckets().catch((err) => {
+            console.log(`Error: Failed to retrieve buckets with message: ${err.message}`);
+            callback(new Error(`Error: Failed to retrieve buckets with message: ${err.message}`));
+        });
+        //@ts-ignore: We have a catch statement, should never be an AWS error
+        if (buckets && buckets.length > 0) {
+            let indices = [];
+            for (let i = 0; i < buckets.length; ++i) {
+                let bucket = buckets[i];
+                let paths = yield s3Connector.getBucketIndex(bucket).catch((err) => {
+                    console.log(`Error: Failed to retrieve index.json from ${bucket} with error ${err.message}`);
+                    callback(new Error(`Error: Failed to retrieve index.json from ${bucket} with error ${err.message}`));
+                });
+                if (paths) {
+                    for (let j = 0; j < paths.length; ++j) {
+                        let path = paths[j];
+                        indices.push({ bucket: bucket, path: path });
+                    }
+                }
+            }
+            yield s3Connector.writeFile("rpi-gc-bucket", "allpaths.json", JSON.stringify(indices)).catch((err) => {
+                console.log(`Error: Failed to write allpaths.json to rpi-gc-bucket: ${err.message}`);
+                callback(new Error(`Error: Failed to write allpaths.json to rpi-gc-bucket: ${err.message}`));
+            });
+        }
+    });
+}
+exports.updateRpiFullIndexFile = updateRpiFullIndexFile;
 function parseEventMessage(event) {
     let rval = null;
     if (event && event.Records && event.Records.length > 0) {

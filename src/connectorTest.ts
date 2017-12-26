@@ -2,6 +2,7 @@ import Connector from './lib/s3Connector'
 import SNSConnector from './lib/snsConnector'
 import {AWSError} from "aws-sdk";
 import * as FS from 'fs'
+import * as Handler from './handler'
 
 const KEY = process.env.KEY;
 const SECRET = process.env.SECRET;
@@ -47,6 +48,15 @@ async function triggerPostToMarkBucket(): Promise<void> {
     console.log(`Submit response was: ${JSON.stringify(submitResponse)}`)
 }
 
-reportBuckets();
+async function getIndexFileContents(): Promise<void> {
+    let indexFileContents = await connectorInstance.getBucketIndex("gcams-test").catch((err: AWSError) => {
+        console.log(`AWS Error: ${err.message}`);
+    });
+
+    console.log(`Index file contents: ${JSON.stringify(indexFileContents)}`)
+}
+
+//reportBuckets();
 //getBucketContents();
 //triggerPostToMarkBucket();
+//getIndexFileContents();
