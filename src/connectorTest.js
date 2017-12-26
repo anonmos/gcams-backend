@@ -8,15 +8,20 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const s3Connector_1 = require("./s3Connector");
+const s3Connector_1 = require("./lib/s3Connector");
+const snsConnector_1 = require("./lib/snsConnector");
+const FS = require("fs");
 const KEY = process.env.KEY;
 const SECRET = process.env.SECRET;
 let connectorInstance;
+let snsConnectorInstance;
 if (KEY && SECRET) {
     connectorInstance = new s3Connector_1.default(KEY, SECRET);
+    snsConnectorInstance = new snsConnector_1.default(KEY, SECRET);
 }
 else {
     connectorInstance = new s3Connector_1.default();
+    snsConnectorInstance = new snsConnector_1.default();
 }
 function reportBuckets() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -31,8 +36,21 @@ function getBucketContents() {
         let bucketResponse = yield connectorInstance.getBucketContents("gcams-jim").catch((err) => {
             console.log(`Error: Caught error trying to retrieve the contents of bukket gcams-jim: ${err.message}`);
         });
-        console.log(`Response from bucket contents request was: ${JSON.stringify(bucketResponse)}`);
+        if (bucketResponse) {
+            console.log(`Response from bucket contents request was: ${JSON.stringify(bucketResponse)}`);
+            console.log(`Response length: ${bucketResponse.length}`);
+        }
+        FS.writeFileSync("output.txt", JSON.stringify(bucketResponse));
+    });
+}
+function triggerPostToMarkBucket() {
+    return __awaiter(this, void 0, void 0, function* () {
+        let submitResponse = yield snsConnectorInstance.postMessageToTopic('arn:aws:sns:us-east-1:515554931530:indexbucket', JSON.stringify({ bucket: "gcams-test" })).catch((err) => {
+            console.log(`AWS Error: ${err.message}`);
+        });
+        console.log(`Submit response was: ${JSON.stringify(submitResponse)}`);
     });
 }
 reportBuckets();
-getBucketContents();
+//getBucketContents();
+//triggerPostToMarkBucket();

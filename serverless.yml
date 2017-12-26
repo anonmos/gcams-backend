@@ -19,7 +19,7 @@ service: aws-nodejs # NOTE: update this with your service name
 
 provider:
   name: aws
-  runtime: nodejs4.3
+  runtime: nodejs6.10
 
 # you can overwrite defaults here
 #  stage: dev
@@ -54,8 +54,14 @@ provider:
 #    - exclude-me-dir/**
 
 functions:
-  hello:
-    handler: handler.hello
+  indexbucket:
+    handler: src/handler.generateIndividualBucketIndex
+    events:
+    - sns: indexbucket
+  indexall:
+    handler: src/handler.refreshBucketIndices
+    events:
+    - schedule: rate(12 hours)
 
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events

@@ -12,6 +12,7 @@
     "@types/bluebird": "^3.5.19",
     "@types/node": "^8.5.2",
     "node": "^9.3.0",
-    "typescript": "^2.6.2"
+    "typescript": "^2.6.2",
+    "yamljs": "^0.3.0"
   }
 }
