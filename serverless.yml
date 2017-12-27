@@ -66,6 +66,10 @@ functions:
     handler: src/handler.updateRpiFullIndexFile
     events:
     - schedule: rate(14 hours)
+  updatecurrentimage:
+    handler: src/handler.updateCurrentImage
+    events:
+    - schedule: rate(7 minutes)
 
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events

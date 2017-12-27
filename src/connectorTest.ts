@@ -56,6 +56,12 @@ async function getIndexFileContents(): Promise<void> {
     console.log(`Index file contents: ${JSON.stringify(indexFileContents)}`)
 }
 
+/*async function updateCurrentImage(): Promise<void> {
+    let currentImageFile = await Handler.updateCurrentImage({}, {callbackWaitsForEmptyEventLoop: true}, function(){});
+}*/
+
+//updateCurrentImage();
+
 //reportBuckets();
 //getBucketContents();
 //triggerPostToMarkBucket();

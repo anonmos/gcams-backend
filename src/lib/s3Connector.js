@@ -113,6 +113,22 @@ class S3Connector {
             });
         });
     }
+    getBucketFile(bucket, filePath) {
+        let params = {
+            Bucket: bucket,
+            Key: filePath
+        };
+        return new Promise((resolve, reject) => {
+            this.instance.getObject(params, (err, data) => {
+                if (err) {
+                    reject(err);
+                }
+                else {
+                    resolve(data.Body);
+                }
+            });
+        });
+    }
     parseIndex(data) {
         let rval = [];
         if (data && data.Body) {

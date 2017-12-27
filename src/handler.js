@@ -10,6 +10,25 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const s3Connector_1 = require("./lib/s3Connector");
 const snsConnector_1 = require("./lib/snsConnector");
+const ALLOWED_FILE_TYPES = ["jpeg", "jpg", "gif", "png", "svg", "bmp"];
+const RPI_BUCKET = "rpi-gc-bucket";
+const CONCATENATED_PATHS_FILE = "allpaths.json";
+const CURRENT_IMAGE_FILE = "current.json";
+/**
+ * Takes the Message from an SNSEvent in the shape of {"bucket":"bucket-name"} and queries every file path, then
+ * writes it to an "index.json" file in that bucket with a list of those paths.
+ *
+ * Requires that the following environment variables be set:
+ *  - process.env.KEY -- AWS API access key ID
+ *  - process.env.SECRET -- AWS API secret access key
+ *
+ * File paths are filtered to have extensions, as directories are treated as files on S3
+ *
+ * @param {SNSEvent} event
+ * @param {Context} context
+ * @param {ProxyCallback} callback
+ * @returns {Promise<void>}
+ */
 function generateIndividualBucketIndex(event, context, callback) {
     return __awaiter(this, void 0, void 0, function* () {
         let message = parseEventMessage(event);
@@ -36,6 +55,20 @@ function generateIndividualBucketIndex(event, context, callback) {
     });
 }
 exports.generateIndividualBucketIndex = generateIndividualBucketIndex;
+/**
+ * Retrieves a list of all buckets with naming convention "gcams-*".  Creates SNS events to trigger generateIndividualBucketIndex
+ * and cause it to index each bucket in parallel.
+ *
+ * Requires that the following environment variables be set:
+ *  - process.env.KEY -- AWS API access key ID
+ *  - process.env.SECRET -- AWS API secret access key
+ *  - SNS_ARN -- AWS SNS ARN identifying the SNS topic where generateIndividualBucketIndex is subscribed
+ *
+ * @param {SNSEvent} event
+ * @param {Context} context
+ * @param {ProxyCallback} callback
+ * @returns {Promise<void>}
+ */
 function refreshBucketIndices(event, context, callback) {
     return __awaiter(this, void 0, void 0, function* () {
         context.callbackWaitsForEmptyEventLoop = false;
@@ -61,6 +94,19 @@ function refreshBucketIndices(event, context, callback) {
     });
 }
 exports.refreshBucketIndices = refreshBucketIndices;
+/**
+ * Retrieves a list of all existing buckets, pulls their index.json files, and concatenates them all into a single
+ * "allpaths.json" within the "rpi-gc-bucket" bucket.
+ *
+ * Requires that the following environment variables be set:
+ *  - process.env.KEY -- AWS API access key ID
+ *  - process.env.SECRET -- AWS API secret access key
+ *
+ * @param {SNSEvent} event
+ * @param {Context} context
+ * @param {ProxyCallback} callback
+ * @returns {Promise<void>}
+ */
 function updateRpiFullIndexFile(event, context, callback) {
     return __awaiter(this, void 0, void 0, function* () {
         context.callbackWaitsForEmptyEventLoop = false;
@@ -88,7 +134,7 @@ function updateRpiFullIndexFile(event, context, callback) {
                     }
                 }
             }
-            yield s3Connector.writeFile("rpi-gc-bucket", "allpaths.json", JSON.stringify(indices)).catch((err) => {
+            yield s3Connector.writeFile(RPI_BUCKET, CONCATENATED_PATHS_FILE, JSON.stringify(indices)).catch((err) => {
                 console.log(`Error: Failed to write allpaths.json to rpi-gc-bucket: ${err.message}`);
                 callback(new Error(`Error: Failed to write allpaths.json to rpi-gc-bucket: ${err.message}`));
             });
@@ -96,6 +142,54 @@ function updateRpiFullIndexFile(event, context, callback) {
     });
 }
 exports.updateRpiFullIndexFile = updateRpiFullIndexFile;
+function updateCurrentImage(event, context, callback) {
+    return __awaiter(this, void 0, void 0, function* () {
+        context.callbackWaitsForEmptyEventLoop = false;
+        if (!process.env.KEY || !process.env.SECRET) {
+            callback(new Error("Error: Key and secret environment variables have not been set."));
+        }
+        let s3Connector = new s3Connector_1.default(process.env.KEY, process.env.SECRET);
+        let allPaths = yield s3Connector.getBucketFile(RPI_BUCKET, CONCATENATED_PATHS_FILE).catch((err) => {
+            let errorString = `Error: Could not read ${CONCATENATED_PATHS_FILE} from ${RPI_BUCKET}: ${err.message}`;
+            console.log(errorString);
+            callback(new Error(errorString));
+        });
+        if (allPaths) {
+            let parsedPaths = JSON.parse(allPaths);
+            let finalPath = selectRandomPath(parsedPaths);
+            let currentFile = {
+                lastUpdated: new Date().toDateString(),
+                path: finalPath
+            };
+            yield s3Connector.writeFile(RPI_BUCKET, CURRENT_IMAGE_FILE, JSON.stringify(currentFile));
+        }
+    });
+}
+exports.updateCurrentImage = updateCurrentImage;
+function selectRandomPath(paths) {
+    let path = "";
+    let bucket = "";
+    let randomPathNumber = 0;
+    do {
+        randomPathNumber = Math.floor(Math.random() * paths.length);
+        path = paths[randomPathNumber].path;
+        bucket = paths[randomPathNumber].bucket;
+    } while (!isAllowedFiletype(path));
+    if (path.length > 0) {
+        path = `https://${bucket}.s3.amazonaws.com/${encodeURIComponent(path)}`;
+    }
+    return path;
+}
+function isAllowedFiletype(path) {
+    let rval = false;
+    for (let i = 0; i < ALLOWED_FILE_TYPES.length; ++i) {
+        let type = ALLOWED_FILE_TYPES[i];
+        if (path.includes(type)) {
+            rval = true;
+        }
+    }
+    return rval;
+}
 function parseEventMessage(event) {
     let rval = null;
     if (event && event.Records && event.Records.length > 0) {

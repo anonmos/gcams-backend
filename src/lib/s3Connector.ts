@@ -120,6 +120,24 @@ export default class S3Connector {
         })
     }
 
+    public getBucketFile(bucket: string, filePath: string): Promise<AWSError | string> {
+        let params: S3.GetObjectRequest = {
+            Bucket: bucket,
+            Key: filePath
+        };
+
+        return new Promise((resolve, reject) => {
+            this.instance.getObject(params, (err: AWSError, data: S3.GetObjectOutput) => {
+                if (err) {
+                    reject(err)
+                } else {
+                    resolve(<string> data.Body)
+                }
+            })
+        })
+
+    }
+
     private parseIndex(data: S3.GetObjectOutput): Array<string> {
         let rval: Array<string> = [];
 
