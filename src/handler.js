@@ -142,6 +142,20 @@ function updateRpiFullIndexFile(event, context, callback) {
     });
 }
 exports.updateRpiFullIndexFile = updateRpiFullIndexFile;
+/**
+ * Updates the `current.json` file within the `rpi-gc-bucket` to have a new set of image paths.
+ * Then updates the history file to include the prior current path.  Will also, eventually, resize the nextNextPath file
+ * to have a low resolution version ready.
+ *
+ * Requires that the following environment variables be set:
+ *  - process.env.KEY -- AWS API access key ID
+ *  - process.env.SECRET -- AWS API secret access key
+ *
+ * @param {SNSEvent} event
+ * @param {Context} context
+ * @param {ProxyCallback} callback
+ * @returns {Promise<void>}
+ */
 function updateCurrentImage(event, context, callback) {
     return __awaiter(this, void 0, void 0, function* () {
         context.callbackWaitsForEmptyEventLoop = false;
@@ -154,18 +168,58 @@ function updateCurrentImage(event, context, callback) {
             console.log(errorString);
             callback(new Error(errorString));
         });
+        let currentImageFile = yield s3Connector.getBucketFile(RPI_BUCKET, CURRENT_IMAGE_FILE).catch((err) => {
+            console.log(`Info: Problem getting current image file with error: ${err.message}, building a new one.`);
+        });
+        let currentImageObject = undefined;
+        if (currentImageFile && currentImageFile.length > 0) {
+            currentImageObject = JSON.parse(currentImageFile);
+        }
+        let historyFileName = `${getDateString()}.json`;
+        let historyFile = yield s3Connector.getBucketFile(RPI_BUCKET, historyFileName).catch((err) => {
+            console.log(`Info: Couldn't find a history file for today, creating a new one.`);
+        });
+        let historyObject = [];
+        if (historyFile && historyFile.length > 0) {
+            historyObject = JSON.parse(historyFile);
+        }
+        if (currentImageObject) {
+            historyObject.push({ dateShown: currentImageObject.lastUpdated, path: currentImageObject.path });
+        }
+        yield s3Connector.writeFile(RPI_BUCKET, historyFileName, JSON.stringify(historyObject));
         if (allPaths) {
             let parsedPaths = JSON.parse(allPaths);
             let finalPath = selectRandomPath(parsedPaths);
+            let nextPath = "";
+            let nextNextPath = "";
+            if (currentImageObject) {
+                nextPath = currentImageObject.nextPath;
+                nextNextPath = currentImageObject.nextNextPath;
+            }
+            else {
+                nextPath = selectRandomPath(parsedPaths);
+                nextNextPath = selectRandomPath(parsedPaths);
+            }
             let currentFile = {
-                lastUpdated: new Date().toDateString(),
-                path: finalPath
+                lastUpdated: new Date().toUTCString(),
+                path: finalPath,
+                nextPath: nextPath,
+                nextNextPath: nextNextPath
             };
             yield s3Connector.writeFile(RPI_BUCKET, CURRENT_IMAGE_FILE, JSON.stringify(currentFile));
         }
     });
 }
 exports.updateCurrentImage = updateCurrentImage;
+function getDateString() {
+    let date = new Date();
+    let day = (date.getDate()).toString();
+    day = day.length === 1 ? `0${day}` : day;
+    let month = (date.getMonth() + 1).toString();
+    month = month.length === 1 ? `0${month}` : month;
+    let year = date.getFullYear();
+    return `${year}${month}${day}`;
+}
 function selectRandomPath(paths) {
     let path = "";
     let bucket = "";

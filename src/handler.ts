@@ -12,8 +12,15 @@ interface AllIndices {
     path: string
 }
 
-interface currentImage {
+interface CurrentImage {
     lastUpdated: string,
+    path: string,
+    nextPath: string,
+    nextNextPath: string
+}
+
+interface ImageHistory {
+    dateShown: string,
     path: string
 }
 
@@ -163,6 +170,20 @@ export async function updateRpiFullIndexFile(event: SNSEvent, context: Context, 
     }
 }
 
+/**
+ * Updates the `current.json` file within the `rpi-gc-bucket` to have a new set of image paths.
+ * Then updates the history file to include the prior current path.  Will also, eventually, resize the nextNextPath file
+ * to have a low resolution version ready.
+ *
+ * Requires that the following environment variables be set:
+ *  - process.env.KEY -- AWS API access key ID
+ *  - process.env.SECRET -- AWS API secret access key
+ *
+ * @param {SNSEvent} event
+ * @param {Context} context
+ * @param {ProxyCallback} callback
+ * @returns {Promise<void>}
+ */
 export async function updateCurrentImage(event: SNSEvent, context: Context, callback: ProxyCallback) {
     context.callbackWaitsForEmptyEventLoop = false;
 
@@ -178,16 +199,69 @@ export async function updateCurrentImage(event: SNSEvent, context: Context, call
         callback(new Error(errorString));
     });
 
+    let currentImageFile = await s3Connector.getBucketFile(RPI_BUCKET, CURRENT_IMAGE_FILE).catch((err: AWSError) => {
+        console.log(`Info: Problem getting current image file with error: ${err.message}, building a new one.`);
+    });
+
+    let currentImageObject: CurrentImage | undefined = undefined;
+
+    if (currentImageFile && (<string> currentImageFile).length > 0) {
+        currentImageObject = JSON.parse(<string> currentImageFile);
+    }
+
+    let historyFileName = `${getDateString()}.json`;
+
+    let historyFile = await s3Connector.getBucketFile(RPI_BUCKET, historyFileName).catch((err: AWSError) => {
+        console.log(`Info: Couldn't find a history file for today, creating a new one.`);
+    });
+
+    let historyObject: Array<ImageHistory> = [];
+
+    if (historyFile && (<string> historyFile).length > 0) {
+        historyObject = JSON.parse(<string> historyFile);
+    }
+
+    if (currentImageObject) {
+        historyObject.push({dateShown: currentImageObject.lastUpdated, path: currentImageObject.path});
+    }
+
+    await s3Connector.writeFile(RPI_BUCKET, historyFileName, JSON.stringify(historyObject));
+
     if (allPaths) {
+
         let parsedPaths = JSON.parse(<string> allPaths);
         let finalPath = selectRandomPath(parsedPaths);
-        let currentFile: currentImage = {
-            lastUpdated: new Date().toDateString(),
-            path: finalPath
+        let nextPath: string = "";
+        let nextNextPath: string = "";
+
+        if (currentImageObject) {
+            nextPath = currentImageObject.nextPath;
+            nextNextPath = currentImageObject.nextNextPath;
+        } else {
+            nextPath = selectRandomPath(parsedPaths);
+            nextNextPath = selectRandomPath(parsedPaths);
+        }
+
+        let currentFile: CurrentImage = {
+            lastUpdated: new Date().toUTCString(),
+            path: finalPath,
+            nextPath: nextPath,
+            nextNextPath: nextNextPath
         };
 
         await s3Connector.writeFile(RPI_BUCKET, CURRENT_IMAGE_FILE, JSON.stringify(currentFile));
     }
+}
+
+function getDateString(): string {
+    let date = new Date();
+    let day = (date.getDate()).toString();
+    day = day.length === 1 ? `0${day}` : day;
+    let month = (date.getMonth() + 1).toString();
+    month = month.length === 1 ? `0${month}` : month;
+    let year = date.getFullYear();
+
+    return `${year}${month}${day}`;
 }
 
 function selectRandomPath(paths: Array<AllIndices>): string {
