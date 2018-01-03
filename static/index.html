@@ -1,0 +1,81 @@
+<html>
+<head>
+    <script
+            src="https://code.jquery.com/jquery-3.2.1.min.js"
+            integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/promise-polyfill@7/dist/polyfill.min.js"></script>
+    <style>
+        img.dimension-adjust {
+            max-width: 100vw;
+            max-height: 100vh;
+        }
+    </style>
+</head>
+<body style="background-color: black; margin: 0;">
+    <div style="display: flex; justify-content: center;">
+        <img id="img-one" style="display: none;" class="dimension-adjust">
+        <img id="img-two" style="display: none;" class="dimension-adjust">
+    </div>
+</body>
+<script>
+  var currentImageblob = {}
+  var imgTagOne
+  var imgTagTwo
+
+  imgTagOne = document.getElementById('img-one')
+  imgTagTwo = document.getElementById('img-two')
+
+  requestCurrentImage()
+    .then(function (data) {
+      currentImageblob = JSON.parse(data)
+      updateImgTags()
+    }).catch(function (err) {
+    console.log('Caught error in request: ' + err)
+  })
+
+  setInterval(function () {
+    requestCurrentImage()
+      .then(function (data) {
+        currentImageblob = JSON.parse(data)
+        updateImgTags()
+      }).catch(function (err) {
+      console.log('Caught error in request: ' + err)
+    })
+  }, 30000)
+
+  function requestCurrentImage () {
+    return new Promise(function (resolve, reject) {
+      $.ajax('https://rpi-gc-bucket.s3.amazonaws.com/current.json', {
+        success: function (data, textStatus, jqXHR) {
+          resolve(data)
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+          reject(textStatus)
+        },
+        cache: false
+      })
+    })
+  }
+
+  function updateImgTags () {
+
+    var firstStarted = imgTagOne.style.display === 'none' && imgTagTwo.style.display === 'none'
+
+    if (imgTagOne.style.display === 'block' && imgTagOne.src !== currentImageblob.path) {
+      imgTagOne.style.display = 'none'
+      imgTagTwo.style.display = 'block'
+      imgTagOne.src = currentImageblob.nextPath
+    } else if (imgTagTwo.style.display === 'block' && imgTagTwo.src !== currentImageblob.path) {
+      imgTagTwo.style.display = 'none'
+      imgTagOne.style.display = 'block'
+      imgTagTwo.src = currentImageblob.nextPath
+    } else if (firstStarted) {
+      imgTagOne.src = currentImageblob.path
+      imgTagOne.style.display = 'block'
+      imgTagTwo.src = currentImageblob.nextPath
+      imgTagTwo.style.display = 'none'
+    }
+  }
+</script>
+</html>
