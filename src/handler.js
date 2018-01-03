@@ -189,20 +189,23 @@ function updateCurrentImage(event, context, callback) {
         yield s3Connector.writeFile(RPI_BUCKET, historyFileName, JSON.stringify(historyObject));
         if (allPaths) {
             let parsedPaths = JSON.parse(allPaths);
-            let finalPath = selectRandomPath(parsedPaths);
+            let newPath = selectRandomPath(parsedPaths);
+            let path = "";
             let nextPath = "";
             let nextNextPath = "";
             if (currentImageObject) {
-                nextPath = currentImageObject.nextPath;
-                nextNextPath = currentImageObject.nextNextPath;
+                path = currentImageObject.nextPath;
+                nextPath = currentImageObject.nextNextPath;
+                nextNextPath = newPath;
             }
             else {
+                path = newPath;
                 nextPath = selectRandomPath(parsedPaths);
                 nextNextPath = selectRandomPath(parsedPaths);
             }
             let currentFile = {
                 lastUpdated: new Date().toUTCString(),
-                path: finalPath,
+                path: path,
                 nextPath: nextPath,
                 nextNextPath: nextNextPath
             };
@@ -238,7 +241,7 @@ function isAllowedFiletype(path) {
     let rval = false;
     for (let i = 0; i < ALLOWED_FILE_TYPES.length; ++i) {
         let type = ALLOWED_FILE_TYPES[i];
-        if (path.includes(type)) {
+        if (path.toLowerCase().includes(type)) {
             rval = true;
         }
     }
