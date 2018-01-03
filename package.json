@@ -3,19 +3,14 @@
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
-  "scripts": {
-    "postinstall": "scripts/install-sharp-lib.sh"
-  },
   "dependencies": {
-    "aws-sdk": "^2.175.0",
-    "sharp": "^0.18.4"
+    "aws-sdk": "^2.175.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "^0.0.24",
     "@types/aws-sdk": "^2.7.0",
     "@types/bluebird": "^3.5.19",
     "@types/node": "^8.5.2",
-    "node": "^9.3.0",
     "typescript": "^2.6.2",
     "yamljs": "^0.3.0"
   }
